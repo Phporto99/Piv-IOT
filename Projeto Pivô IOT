@@ -1,0 +1,361 @@
+#include <Wire.h>
+#include <LiquidCrystal_I2C.h>
+#include <WiFi.h>
+#include <WiFiClient.h>
+#include <WiFiAP.h>
+#include <LiquidCrystal_I2C.h>
+
+#define V1 16
+#define V2 0
+#define V3 4
+
+LiquidCrystal_I2C lcd(0x27, 16, 2);
+
+
+#define IN1  18
+#define IN2  5
+#define velocidadeA  19
+#define IN3 17
+#define IN4  16
+#define velocidadeB  4
+
+//variavel auxiliar
+int velocidade = 0, buzzer = 2;
+//Inicializa Pinos
+const int pinoBotao1 = 13;  //PINO DIGITAL UTILIZADO PELO PUSH BUTTON
+const int pinoBotao2 = 32;  //PINO DIGITAL UTILIZADO PELO PUSH BUTTON
+const int pinoBotao3 = 19;  //PINO DIGITAL UTILIZADO PELO PUSH BUTTON
+const int pinoBotao4 = 35;  //PINO DIGITAL UTILIZADO PELO PUSH BUTTON
+
+
+
+bool Liga_Desliga_Motor = LOW;
+bool Inverter_Sentido = LOW;
+bool Led = LOW;
+bool Velocidade_3 = LOW;
+
+// substitua os dados entre parênteses com o nome da Rede e a senha desejados
+const char *ssid = "Centra PIVÔ ";
+const char *password = "123456789";
+
+WiFiServer server(80);
+
+
+
+void setup() {
+
+  lcd.init();
+  pinMode(buzzer, OUTPUT);
+
+
+
+  Serial.begin(115200);
+  Serial.println();
+  Serial.println("configurando...");
+
+
+  // Você pode remover o parâmetro de senha se quiser que
+  // a rede gerada seja aberta.
+  WiFi.softAP(ssid, password);
+  IPAddress myIP = WiFi.softAPIP();
+  Serial.print("O Endereço IP Da Rede : ");
+  Serial.println(myIP);
+
+  //inicia o webserver
+  server.begin();
+
+  Serial.println("Servidor Iniciado!!");
+
+
+
+  pinMode(15, OUTPUT);
+
+  pinMode(IN1, OUTPUT);
+  pinMode(IN2, OUTPUT);
+  pinMode(IN3,OUTPUT);
+  pinMode(IN4,OUTPUT);
+  pinMode(velocidadeA, OUTPUT);
+  pinMode(velocidadeB, OUTPUT);
+
+  digitalWrite(IN3, LOW);
+  digitalWrite(IN4, HIGH);
+
+  lcd.setBacklight(HIGH);
+  lcd.setCursor(0, 0);
+  lcd.print("     CENTRAL   ");
+  lcd.setCursor(0, 1);
+  lcd.print("    INICIADA!   ");
+}
+
+void loop() {
+
+
+  WiFiClient client = server.available();  // verifica e armazena se tem clientes conectados na rede
+
+  if (client) {                       // se você conseguir um cliente,
+    Serial.println("Novo Cliente.");  // imprime uma mensagem pela porta serial
+    String currentLine = "";          // faz uma String para manter os dados recebidos do cliente
+    while (client.connected()) {      // loop enquanto o cliente está conectado
+      if (client.available()) {       // se houver bytes para ler do cliente,
+        char c = client.read();       // leia um byte e depois
+        Serial.write(c);              // imprima o monitor serial
+        if (c == '\n') {              // se o byte for um caractere de nova linha
+
+
+          /* se a linha atual estiver em branco, você terá dois caracteres de nova linha em uma linha.
+esse é o fim da solicitação HTTP do cliente, então envie uma resposta: */
+          if (currentLine.length() == 0) {
+            /* Os cabeçalhos HTTP sempre começam com um código de resposta (por exemplo, HTTP / 1.1 200 OK)
+e um tipo de conteúdo para que o cliente saiba o que está por vir e, em seguida, uma linha em branco: */
+            client.println("HTTP/1.1 200 OK");
+            client.println("Content-type:text/html");
+            client.println();
+
+
+            // configuração de estilo do site
+            client.print("<style type=\"text/css\"> a{margin: 50px 50px; background: #000000; color: #ffffff; text-decoration: none; padding: 1% 20% 1%; border-radius: 10px; font-size: 8.0em;}</style>");
+            // o conteúdo do cabeçalho HTTP
+            client.print("<a href=\"/T0\">L/D Motor. </a> </br></br></br>");
+            client.print("<a href=\"/T1\">Inverte. </a> </br></br></br>");
+            client.print("<a href=\"/T2\">V 0. </a> </br></br></br>");
+            client.print("<a href=\"/T3\">V 1. </a> </br></br></br>");
+            client.print("<a href=\"/T4\">V 2. </a> </br></br></br>");
+            client.print("<a href=\"/T5\">V 3. </a> </br></br></br>");
+            client.print("<a href=\"/T6\">Liga Bomba. </a> </br></br></br>");
+
+            // A resposta HTTP termina com outra linha em branco:
+            client.println();
+            // sair do loop while:
+            break;
+          } else {  // se você tiver uma nova linha, então limpe a linha atual:
+            currentLine = "";
+          }
+        } else if (c != '\r') {  // se você tiver qualquer outra coisa além de um caractere de retorno de linha,
+          currentLine += c;      // adicioná-lo ao final da linha atual
+        }
+
+        // Verifica se o pedido do cliente foi para atualizar algum dos reles (GET /T)
+
+
+
+
+
+
+
+        if (currentLine.endsWith("GET /T0")) {
+
+          if (Liga_Desliga_Motor == LOW) {
+            tone(buzzer, 293);
+            delay(20);
+            noTone(buzzer);
+
+            Liga_Desliga_Motor = HIGH;
+            velocidade = 0;
+
+            lcd.clear();
+            lcd.setBacklight(HIGH);
+            lcd.setCursor(0, 0);
+            lcd.print("      PIVO      ");
+            lcd.setCursor(0, 1);
+            lcd.print("     LIGADO!    ");
+
+            //erial.println("Motor Ligado");
+            //delay(30);
+          } else {
+
+            tone(buzzer, 293);
+            delay(20);
+            noTone(buzzer);
+
+            Liga_Desliga_Motor = LOW;
+            velocidade = 0;
+
+            lcd.clear();
+            lcd.setBacklight(HIGH);
+            lcd.setCursor(0, 0);
+            lcd.print("      PIVO      ");
+            lcd.setCursor(0, 1);
+            lcd.print("   DESLIGADO!   ");
+
+            //Serial.println("Motor Desligado");
+            //delay(30);
+          }
+        }
+
+
+
+
+        if (currentLine.endsWith("GET /T1")) {
+          if (velocidade == 0) {
+            if (Inverter_Sentido == LOW) {
+
+              tone(buzzer, 293);
+              delay(20);
+              noTone(buzzer);
+
+              digitalWrite(IN3, HIGH);
+              digitalWrite(IN4, LOW);
+              Inverter_Sentido = HIGH;
+
+
+
+              lcd.clear();
+
+              lcd.setBacklight(HIGH);
+              lcd.setCursor(0, 0);
+              lcd.print("  PIVO SENTIDO  ");
+              lcd.setCursor(0, 1);
+              lcd.print("    HORARIO!    ");
+
+            } else {
+
+              tone(buzzer, 293);
+              delay(20);
+              noTone(buzzer);
+
+              digitalWrite(IN3, LOW);
+              digitalWrite(IN4, HIGH);
+              Inverter_Sentido = LOW;
+
+              lcd.clear();
+
+              lcd.setBacklight(HIGH);
+              lcd.setCursor(0, 0);
+              lcd.print("  PIVO SENTIDO  ");
+              lcd.setCursor(0, 1);
+              lcd.print(" ANTI-HORARIO!");
+            }
+          }
+        }
+
+        if (Liga_Desliga_Motor == HIGH) {
+          if (currentLine.endsWith("GET /T2")) {
+
+            tone(buzzer, 293);
+            delay(20);
+            noTone(buzzer);
+
+            velocidade = 0;
+
+            lcd.clear();
+            lcd.setBacklight(HIGH);
+            lcd.setCursor(0, 0);
+            lcd.print("  PIVO LIGADO!  ");
+            lcd.setCursor(0, 1);
+            lcd.print("VELOCIDADE 0 %");
+          }
+        }
+
+        if (Liga_Desliga_Motor == HIGH) {
+          if (currentLine.endsWith("GET /T3")) {
+
+            tone(buzzer, 293);
+            delay(20);
+            noTone(buzzer);
+            velocidade = 150;
+
+            lcd.clear();
+            lcd.setBacklight(HIGH);
+            lcd.setCursor(0, 0);
+            lcd.print("  PIVO LIGADO!  ");
+            lcd.setCursor(0, 1);
+            lcd.print("VELOCIDADE 30 %");
+          }
+        }
+
+
+
+        if (Liga_Desliga_Motor == HIGH) {
+          if (currentLine.endsWith("GET /T4")) {
+
+            tone(buzzer, 293);
+            delay(20);
+            noTone(buzzer);
+
+            velocidade = 200;
+
+
+            lcd.clear();
+            lcd.setBacklight(HIGH);
+            lcd.setCursor(0, 0);
+            lcd.print("  PIVO LIGADO!  ");
+            lcd.setCursor(0, 1);
+            lcd.print("VELOCIDADE 60 %");
+            //Velocidade_1 = HIGH;
+          }
+        }
+
+        if (Liga_Desliga_Motor == HIGH) {
+          if (currentLine.endsWith("GET /T5")) {
+
+            tone(buzzer, 293);
+            delay(20);
+            noTone(buzzer);
+
+            velocidade = 255;
+
+
+
+            lcd.clear();
+            lcd.setBacklight(HIGH);
+            lcd.setCursor(0, 0);
+            lcd.print("  PIVO LIGADO!  ");
+            lcd.setCursor(0, 1);
+            lcd.print("VELOCIDADE 100 %");
+          }
+        }
+
+        if (currentLine.endsWith("GET /T6")) {
+
+          if (Led == LOW) {
+
+            tone(buzzer, 293);
+            delay(20);
+            noTone(buzzer);
+
+            digitalWrite(15, HIGH);
+            Led = HIGH;
+
+
+            lcd.setCursor(0, 0);
+
+            lcd.print("     BOMBA      ");
+            lcd.setCursor(0, 1);
+            lcd.print("    LIGADA!     ");
+
+
+          } else {
+            tone(buzzer, 293);
+            delay(20);
+            noTone(buzzer);
+
+
+            digitalWrite(15, LOW);
+            Led = LOW;
+
+
+
+            lcd.setCursor(0, 0);
+
+            lcd.print("      BOMBA     ");
+            lcd.setCursor(0, 1);
+
+            lcd.print("    DESLIGADA   ");
+          }
+        }
+      }
+    }
+  }
+
+
+  // termina a conexão com o cliente
+  client.stop();
+  //Serial.println("Cliente desconectado.");Serial.println(aumenta);
+  // delay(100);
+  analogWrite(velocidadeA, velocidade);
+  analogWrite(velocidadeB, velocidade);
+  
+  //velocidade = velocidade;
+  Serial.println(velocidade);
+  delay(10);
+}
